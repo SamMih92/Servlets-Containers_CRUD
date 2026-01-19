@@ -1,4 +1,4 @@
-package ru.netology.servlet;
+package ru.netology;
 
 import ru.netology.controller.PostController;
 import ru.netology.repository.PostRepository;
@@ -7,66 +7,58 @@ import ru.netology.service.PostService;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.regex.Pattern;
+import java.io.IOException;
 
 public class MainServlet extends HttpServlet {
+
+    // Контроллер, который будет управлять запросами и делегировать их в сервис
     private PostController controller;
 
-    // Константы для путей и статусов
-    private static final String API_POSTS_PATH = "/api/posts";
-    private static final Pattern POST_ID_PATTERN = Pattern.compile(API_POSTS_PATH + "/(\\d+)");
-    private static final int STATUS_NOT_FOUND = HttpServletResponse.SC_NOT_FOUND;
-    private static final int STATUS_INTERNAL_ERROR = HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-
     @Override
+    // Инициализация сервлета: создаем репозиторий, сервис и контроллер
     public void init() {
-        final var repository = new PostRepository();
-        final var service = new PostService(repository);
-        controller = new PostController(service);
+        final var repository = new PostRepository(); // создаем репозиторий
+        final var service = new PostService(repository); // создаем сервис
+        controller = new PostController(service); // создаем контроллер
     }
 
     @Override
+    // Обработка HTTP-запросов, определение маршрута и метода
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
         try {
-            final String path = req.getRequestURI();
-            final String method = req.getMethod();
+            final var path = req.getRequestURI(); // получаем URI запроса
+            final var method = req.getMethod();   // получаем метод запроса (GET, POST, DELETE и т.д.)
 
-            // Роутинг по методам и путям
-            if ("GET".equals(method)) {
-                handleGet(path, resp);
+            // Обработка маршрута для всех запросов
+            if (method.equals("GET") && path.equals("/api/posts")) {
+                controller.all(resp); // запрос для получения всех постов
                 return;
             }
-            if ("POST".equals(method) && API_POSTS_PATH.equals(path)) {
-                controller.save(req.getReader(), resp);
+
+            if (method.equals("GET") && path.matches("/api/posts/\\d+")) {
+                // запрос для получения поста по id
+                final var id = Long.parseLong(path.substring(path.lastIndexOf("/") + 1)); // извлекаем id из URL
+                controller.getById(id, resp);
                 return;
             }
-            if ("DELETE".equals(method) && POST_ID_PATTERN.matcher(path).matches()) {
-                final long id = extractIdFromPath(path);
+
+            if (method.equals("POST") && path.equals("/api/posts")) {
+                controller.save(req.getReader(), resp); // запрос на создание/обновление поста
+                return;
+            }
+
+            if (method.equals("DELETE") && path.matches("/api/posts/\\d+")) {
+                // запрос на удаление поста по id
+                final var id = Long.parseLong(path.substring(path.lastIndexOf("/") + 1)); // извлекаем id из URL
                 controller.removeById(id, resp);
                 return;
             }
 
-            resp.setStatus(STATUS_NOT_FOUND);
+            // если не удалось найти подходящий маршрут, возвращаем 404 ошибку
+            resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
         } catch (Exception e) {
-            e.printStackTrace();
-            resp.setStatus(STATUS_INTERNAL_ERROR);
+            e.printStackTrace(); // печатаем ошибку в случае исключений
+            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // возвращаем ошибку сервера
         }
-    }
-
-    // Приватный метод для обработки GET
-    private void handleGet(String path, HttpServletResponse resp) throws Exception {
-        if (API_POSTS_PATH.equals(path)) {
-            controller.all(resp);
-        } else if (POST_ID_PATTERN.matcher(path).matches()) {
-            final long id = extractIdFromPath(path);
-            controller.getById(id, resp);
-        } else {
-            resp.setStatus(STATUS_NOT_FOUND);
-        }
-    }
-
-    // Извлечение ID из пути (убирает дублирование)
-    private long extractIdFromPath(String path) {
-        return Long.parseLong(path.substring(path.lastIndexOf("/") + 1));
     }
 }
