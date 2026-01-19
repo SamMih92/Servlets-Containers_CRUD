@@ -9,11 +9,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration  // делает класс источником конфигурации Spring
-@ComponentScan(basePackages = "ru.netology")  // сканирует пакет ru.netology на @Component/@Service/@Repository
+
 
 public class MainServlet extends HttpServlet {
 
@@ -21,11 +18,10 @@ public class MainServlet extends HttpServlet {
     private PostController controller;
 
     @Override
-    // Инициализация сервлета: создаем репозиторий, сервис и контроллер
+    // Инициализация сервлета: Spring Java Config создает бины
     public void init() {
-        final var repository = new PostRepository(); // создаем репозиторий
-        final var service = new PostService(repository); // создаем сервис
-        controller = new PostController(service); // создаем контроллер
+        var context = new AnnotationConfigApplicationContext(AppConfig.class);
+        controller = context.getBean(PostController.class);
     }
 
     @Override
